@@ -122,7 +122,7 @@ def callback():
 @jwt_required()
 def logout():
     try:
-        response = jsonify({"msg": "logout successful"})
+        response = jsonify({"msg": "logout successful", "status": 200 })
         unset_jwt_cookies(response)
 
         auth_source = get_jwt()["auth_source"]
@@ -148,7 +148,8 @@ def logout():
 @jwt_required()
 def verify():
     username = get_jwt_identity()
-    return jsonify(user_identity=username)
+    auth_source = get_jwt()['auth_source']
+    return jsonify(id=username, auth_source=auth_source)
 
 
 if __name__ == "__main__":
