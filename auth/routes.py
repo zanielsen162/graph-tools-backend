@@ -4,6 +4,8 @@ from datetime import timezone
 
 from flask import Flask, redirect, render_template, session, url_for, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
+import psycopg2 as psy
+from psycopg2.extras import RealDictCursor
 
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required, JWTManager, set_access_cookies, unset_jwt_cookies
 from flask_cors import CORS
@@ -15,48 +17,18 @@ from dotenv import load_dotenv
 import os
 import json
 
+from flask import Blueprint
+from extensions import jwt, oauth
+from database.routes import authenticate
 
-load_dotenv()
-app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["http://localhost:3000"])
 
-# If true this will only allow the cookies that contain your JWTs to be sent
-# over https. In production, this should always be set to True
-app.config["JWT_COOKIE_SECURE"] = False
-app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
-app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
-app.config["JWT_COOKIE_CSRF_PROTECT"] = True
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
-
-jwt = JWTManager(app)
-oauth = OAuth(app)
+auth = Blueprint('auth', __name__)
 
 # will sub with actual database once implemented
-users = {
-    "testuser": {
-        "password": generate_password_hash('password'),
-        "name": "Test User",
-        "email": "testuser@gmail.com"
-    }
-}
-
-oauth.register(
-    "auth0",
-    client_id=os.getenv("AUTH0_CLIENT_ID"),
-    client_secret=os.getenv("AUTH0_CLIENT_SECRET"),
-    api_base_url=f'https://{os.getenv("AUTH0_DOMAIN")}',
-    access_token_url=f'https://{os.getenv("AUTH0_DOMAIN")}/oauth/token',
-    authorize_url=f'https://{os.getenv("AUTH0_DOMAIN")}/authorize',
-    server_metadata_url=f'https://{os.getenv("AUTH0_DOMAIN")}/.well-known/openid-configuration',
-    client_kwargs={
-        "scope": "openid profile email",
-    },
-)
 
 # Using an `after_request` callback, we refresh any token that is within 30
 # minutes of expiring. Change the timedeltas to match the needs of your application.
-@app.after_request
+@auth.after_request
 def refresh_expiring_jwts(response):
     if request.endpoint == "logout":
         return response
@@ -78,29 +50,35 @@ def refresh_expiring_jwts(response):
         # Case where there is not a valid JWT. Just return the original response
         return response
 
-@app.route("/login")
+@auth.route("/login")
 def login():
     return oauth.auth0.authorize_redirect(
-        redirect_uri=url_for("callback", _external=True)
+        redirect_uri=url_for("auth.callback", _external=True)
     )
 
-@app.route("/login_direct", methods=["POST"])
+@auth.route("/login_direct", methods=["POST"])
 def login_direct():
     data = request.json
-    username = data.get("username", None)
-    password = data.get("password", None)
+    input_id = data.get("username", None)
+    input_password = data.get("password", None)
+    user = None
 
-    if username in users and check_password_hash(users[username]["password"], password):
+    if not input_id or not input_password:
+        return jsonify({'msg': 'Missing credentials', 'status': 400})
+
+    auth_result = authenticate(input_id, input_password).get_json()
+    if auth_result['status'] == 200:
+        access_token = create_access_token(
+            identity=auth_result['user']['id'],
+            additional_claims=auth_result['user']
+        )
         response = jsonify({'msg': 'Login successful', 'status': 200})
-        access_token = create_access_token(identity=username, additional_claims={"auth_source": "direct"})
         set_access_cookies(response, access_token)
-        
         return response
 
-    response = jsonify({'msg': 'Login failed', 'status': 401})
-    return response
+    return jsonify({'msg': 'Missing credentials', 'status': 400})
 
-@app.route("/callback")
+@auth.route("/callback")
 def callback():
     token = oauth.auth0.authorize_access_token()
     userInfo = token.get('userinfo')
@@ -110,7 +88,7 @@ def callback():
     set_access_cookies(response, access_token)
     return response
 
-@app.route("/logout", methods=["GET"])
+@auth.route("/logout", methods=["GET"])
 @jwt_required()
 def logout():
     try:
@@ -135,13 +113,16 @@ def logout():
         return jsonify({"msg": "Error during logout", "error": str(e)}), 500
 
 
-@app.route("/verify", methods=["GET"])
+@auth.route("/verify", methods=["GET"])
 @jwt_required()
 def verify():
-    username = get_jwt_identity()
+    id = get_jwt_identity()
     auth_source = get_jwt()['auth_source']
+
+    if auth_source == 'direct':
+        username = get_jwt()['username']
+        email = get_jwt()['email']
+        return jsonify(id=username, username=username, email=email, auth_source=auth_source)
+    
     return jsonify(id=username, auth_source=auth_source)
-
-
-if __name__ == "__main__":
-    app.run()
+    
