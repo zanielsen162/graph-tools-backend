@@ -34,7 +34,7 @@ cur.execute(
     'INSERT INTO users (user_id, username, email, password_hash)'
     'VALUES (%s, %s, %s, %s)',
     (
-        userId,
+        str(userId),
         'testuser',
         'testuser@fake.com',
         password

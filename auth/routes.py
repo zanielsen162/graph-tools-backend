@@ -116,7 +116,7 @@ def logout():
 @auth.route("/verify", methods=["GET"])
 @jwt_required()
 def verify():
-    id = get_jwt_identity()
+    username = get_jwt_identity()
     auth_source = get_jwt()['auth_source']
 
     if auth_source == 'direct':
