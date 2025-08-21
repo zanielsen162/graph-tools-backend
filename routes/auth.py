@@ -19,7 +19,7 @@ import json
 
 from flask import Blueprint
 from extensions import jwt, oauth
-from database.routes import authenticate
+from services.db import authenticate
 
 
 auth = Blueprint('auth', __name__)
@@ -76,7 +76,7 @@ def login_direct():
         set_access_cookies(response, access_token)
         return response
 
-    return jsonify({'msg': 'Missing credentials', 'status': 400})
+    return jsonify({'msg': 'Error signing in. Please check credentials.', 'status': 400})
 
 @auth.route("/callback")
 def callback():
@@ -121,8 +121,9 @@ def verify():
 
     if auth_source == 'direct':
         username = get_jwt()['username']
+        id = get_jwt()['id']
         email = get_jwt()['email']
-        return jsonify(id=username, username=username, email=email, auth_source=auth_source)
+        return jsonify(id=id, username=username, email=email, auth_source=auth_source)
     
     return jsonify(id=username, auth_source=auth_source)
     

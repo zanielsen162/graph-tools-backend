@@ -8,3 +8,5 @@ timedelta
 psycopg2-binary
 werkzeug
 flask_cors
+flask_restx
+networkx[default]

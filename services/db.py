@@ -2,8 +2,8 @@ import os
 import psycopg2 as psy
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
-import uuid
 from werkzeug.security import check_password_hash, generate_password_hash
+from flask import Flask, redirect, render_template, session, url_for, request, jsonify
 
 from flask import Blueprint, jsonify
 
@@ -54,29 +54,4 @@ def authenticate(input_id, input_password):
             response = jsonify({'msg': 'Invalid credentials', 'status': 401})
     else:
         response = jsonify({'msg': 'User not found', 'status': 401})
-    return response
-
-@dbr.route('/create_user', methods=['POST'])
-def create_user():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(
-            'INSERT INTO users (user_id, username, email, password_hash)'
-            'VALUES (%s, %s, %s, %s)',
-            (
-                userId,
-                username,
-                email,
-                password
-            )
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        response = jsonify({'msg': 'User created', 'status': 200})
-    except:
-        response = jsonify({'msg': 'Error creating user', 'status': 401})
-
-
     return response
