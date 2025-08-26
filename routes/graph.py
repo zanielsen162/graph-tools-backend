@@ -4,7 +4,67 @@ from psycopg2.extras import RealDictCursor
 from psycopg2 import sql
 from services.db import get_db_connection
 import json
-import uuid
+from services.graph import build_undirected_graph, generate_free_graph, generate_free_and_add, export_graph_to_cytoscape_format
+from models.Structure import StructType, Struct
+import networkx as nx
+
+@graph.route('/generate_graph', methods=['POST'])
+def generate_graph_route():
+    res = request.get_json()
+
+    vertex_set_size = res['formData']['size']['vertexSetSize']
+    edge_set_size = res['formData']['size']['edgeSetSize']
+    directed = res['formData']['types']['directed']
+    acyclic = res['formData']['types']['acyclic']
+    connected = res['formData']['types']['connected']
+    complete = res['formData']['types']['complete']
+    bipartite = res['formData']['types']['bipartite']
+    tournament = res['formData']['types']['tournament']
+    induced_structures = res['formData']['inducedStructures']
+
+    induced_structures = [
+        Struct(
+            free=item["free"],
+            structure=StructType(
+                value=item["structure"]["value"],
+                label=item["structure"]["label"]
+            ),
+            size=item["size"],
+            amount=item["amount"]
+        )
+        for item in induced_structures
+    ]
+    free_structs = [struct for struct in induced_structures if struct.free]
+    include_structs = [struct for struct in induced_structures if not struct.free]
+
+    if not directed:
+        if len(free_structs) == 0:
+            G = build_undirected_graph(
+                n=vertex_set_size,
+                complete=complete,
+                acyclic=acyclic,
+                bipartite=bipartite,
+                structures=include_structs,
+                connected=connected
+            )
+        elif len(include_structs) == 0:
+            G = generate_free_graph(
+                n=vertex_set_size,
+                induced_graphs=free_structs,
+            )
+        else:
+            G = generate_free_and_add(
+                n=vertex_set_size,
+                induced_graphs=include_structs,
+                free_graphs=free_structs,
+                m=edge_set_size
+            )
+        return jsonify(
+            export_graph_to_cytoscape_format(G)
+        )
+        
+
+
 
 @graph.route('/save_graph', methods=["POST"])
 def save_graph():
