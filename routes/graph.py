@@ -7,6 +7,7 @@ import json
 from services.graph import build_undirected_graph, generate_free_graph, generate_free_and_add, export_graph_to_cytoscape_format
 from models.Structure import StructType, Struct
 import networkx as nx
+from psycopg2.extras import RealDictCursor
 
 @graph.route('/generate_graph', methods=['POST'])
 def generate_graph_route():
@@ -64,8 +65,6 @@ def generate_graph_route():
         )
         
 
-
-
 @graph.route('/save_graph', methods=["POST"])
 def save_graph():
     res = request.get_json()
@@ -73,6 +72,7 @@ def save_graph():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     userId = res['user']['id']
+    name = res['formData']['name']
     vertex_set_size = res['formData']['size']['vertexSetSize']
     edge_set_size = res['formData']['size']['edgeSetSize']
     directed = res['formData']['types']['directed']
@@ -82,12 +82,13 @@ def save_graph():
     bipartite = res['formData']['types']['bipartite']
     tournament = res['formData']['types']['tournament']
     induced_structures = res['formData']['inducedStructures']
-    nodes = res['nodes']
-    edges = res['edges']
+    nodes = res['graph']['nodes']
+    edges = res['graph']['edges']
 
     cur.execute(
         sql.SQL("""
             INSERT INTO {} (
+                name,
                 vertex_set_size,
                 edge_set_size,
                 directed,
@@ -100,9 +101,10 @@ def save_graph():
                 nodes,
                 edges
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """).format(sql.Identifier(str(userId))),
         (   
+            name,
             vertex_set_size,
             edge_set_size,
             directed,
@@ -122,3 +124,40 @@ def save_graph():
     conn.close()
 
     return jsonify({'msg': 'save successful'})
+
+@graph.route('/load_graphs', methods=["POST"])
+def load_graphs():
+    res = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    userId = res['user']['id']
+    cur.execute(f'SELECT * FROM "{userId}";')
+    graphs = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return graphs
+
+@graph.route('/remove_graph', methods=['POST'])
+def delete_graph():
+    res = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    userId = res['user']['id']
+    graphIds = res.get('id') 
+    if not graphIds or not isinstance(graphIds, list):
+        return jsonify({"success": False, "error": "No IDs provided"}), 400
+    
+    print(userId, graphIds)
+
+    placeholders = ','.join(['%s'] * len(graphIds))
+    query = f'DELETE FROM "{userId}" WHERE id IN ({placeholders});'
+    cur.execute(query, graphIds)
+    conn.commit()
+    
+    cur.close()
+    conn.close()
+
+    return jsonify({"success": True, "deleted_ids": graphIds})

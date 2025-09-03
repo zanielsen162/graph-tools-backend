@@ -62,6 +62,7 @@ def create_user():
             sql.SQL("""
                 CREATE TABLE {} (
                     id SERIAL PRIMARY KEY,
+                    name varchar(255),
                     vertex_set_size INT NOT NULL,
                     edge_set_size INT NOT NULL,
                     directed BOOLEAN NOT NULL,
