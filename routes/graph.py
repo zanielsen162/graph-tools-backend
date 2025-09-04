@@ -173,6 +173,26 @@ def update_graph():
 
     return jsonify({"success": True, "updated": graphId})
 
+@graph.route('/get_graph', methods=['POST'])
+def update_graph():
+    res = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    userId = res['user']['id']
+    graphId = res['analyzeFormData']['id']
+    
+    query = f'SELECT nodes, edges, notes FROM %s WHERE id = %s;'
+    cur.execute(query, (userId, graphId))
+    graph = cur.fetchone()
+
+    conn.commit()
+    
+    cur.close()
+    conn.close()
+
+    return graph
+
 @graph.route('/remove_graph', methods=['POST'])
 def delete_graph():
     res = request.get_json()
