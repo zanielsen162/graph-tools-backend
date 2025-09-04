@@ -139,6 +139,40 @@ def load_graphs():
 
     return graphs
 
+@graph.route('/load_identifiers', methods=['POST'])
+def load_identifiers():
+    res = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    userId = res['user']['id']
+    cur.execute(f'SELECT id, name FROM "{userId}";')
+    graphs = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return graphs
+
+@graph.route('/update_graph', methods=['POST'])
+def update_graph():
+    res = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    userId = res['user']['id']
+    graphId = res['analyzeFormData']['id']
+    notes = res['analyzeFormData']['notes']
+    
+    query = f'UPDATE "{userId}" SET notes = %s WHERE id = %s;'
+    cur.execute(query, (notes, graphId))
+
+    conn.commit()
+    
+    cur.close()
+    conn.close()
+
+    return jsonify({"success": True, "updated": graphId})
+
 @graph.route('/remove_graph', methods=['POST'])
 def delete_graph():
     res = request.get_json()
@@ -150,8 +184,6 @@ def delete_graph():
     if not graphIds or not isinstance(graphIds, list):
         return jsonify({"success": False, "error": "No IDs provided"}), 400
     
-    print(userId, graphIds)
-
     placeholders = ','.join(['%s'] * len(graphIds))
     query = f'DELETE FROM "{userId}" WHERE id IN ({placeholders});'
     cur.execute(query, graphIds)
