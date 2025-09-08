@@ -19,7 +19,7 @@ import json
 
 from flask import Blueprint
 from extensions import jwt, oauth
-from services.db import authenticate
+from services.db import authenticate, create_user_db, checking_user_exist
 
 
 auth = Blueprint('auth', __name__)
@@ -82,6 +82,31 @@ def login_direct():
 def callback():
     token = oauth.auth0.authorize_access_token()
     userInfo = token.get('userinfo')
+
+    username=userInfo['nickname']
+    userId=userInfo['sub']
+    email=userInfo['email']
+
+    row = checking_user_exist(username, email)
+
+    if row:
+        if not row['user_id'] == userId:
+            return redirect(
+                "https://" + os.getenv("AUTH0_DOMAIN")
+                + "/v2/logout?"
+                + urlencode({
+                    "returnTo": 'http://localhost:3000/login?error=failed',
+                    "client_id": os.getenv("AUTH0_CLIENT_ID"),
+                }, quote_via=quote_plus)
+            )
+        
+    creating_user_response = create_user_db(
+        username=userInfo['nickname'],
+        userId=userInfo['sub'],
+        email=userInfo['email']
+    )
+
+    print(creating_user_response)
 
     access_token = create_access_token(identity=userInfo["sub"], additional_claims={"auth_source": "auth0"})
     response = redirect("http://localhost:3000/")
