@@ -29,7 +29,7 @@ def checking_user_exist(username, email):
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute('SELECT user_id, username, email FROM users WHERE username = %s OR email = %s LIMIT 1;', (username,email))
         row = cur.fetchone()
-        print(row)
+
         cur.close()
         conn.close()
 
@@ -67,6 +67,7 @@ def create_user_db(username, userId, email, password=''):
                     bipartite BOOLEAN NOT NULL,
                     tournament BOOLEAN NOT NULL,
                     induced_structures JSONB NOT NULL,
+                    notes TEXT,
                     nodes JSONB,
                     edges JSONB
                 );
@@ -78,7 +79,6 @@ def create_user_db(username, userId, email, password=''):
 
     except Exception as e:
         conn.rollback()
-        print("Error creating user:", e)
         response = jsonify({'msg': 'Error creating user', 'status': 401})
     
     finally:
