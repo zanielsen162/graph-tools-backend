@@ -3,6 +3,20 @@ A backend application built with [Flask](https://flask.palletsprojects.com/en/st
 
 **Technologies Used:** [Flask](https://flask.palletsprojects.com/en/stable/), [PostgreSQL](https://www.postgresql.org/), [networkx](https://networkx.org/), [auth0](https://auth0.com/), [pytest](https://docs.pytest.org/en/stable/), [Jenkins](https://www.jenkins.io/), [podman](https://podman.io/), [minikube](https://minikube.sigs.k8s.io/docs/)
 
+## Usage 
+1. Build the container
+```bash
+podman build --tag graph-tools-backend .
+```
+2. Run the container
+```bash
+podman run -p 5000:5000 graph-tools-backend
+```
+3. Stop container
+```bash
+podman stop graph-tools-backend
+```
+
 ## Features
 ### Currently Supported
 - Random graph generation
