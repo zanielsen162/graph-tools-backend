@@ -106,9 +106,7 @@ def callback():
         email=userInfo['email']
     )
 
-    print(creating_user_response)
-
-    access_token = create_access_token(identity=userInfo["sub"], additional_claims={"auth_source": "auth0"})
+    access_token = create_access_token(identity=userInfo["sub"], additional_claims={"auth_source": "auth0", 'username': userInfo['nickname'], 'email': userInfo['email']})
     response = redirect("http://localhost:3000/")
     set_access_cookies(response, access_token)
     return response
@@ -141,14 +139,13 @@ def logout():
 @auth.route("/verify", methods=["GET"])
 @jwt_required()
 def verify():
-    username = get_jwt_identity()
+    username = get_jwt()['username']
+    id = get_jwt_identity()
+    email = get_jwt()['email']
     auth_source = get_jwt()['auth_source']
 
     if auth_source == 'direct':
-        username = get_jwt()['username']
         id = get_jwt()['id']
-        email = get_jwt()['email']
-        return jsonify(id=id, username=username, email=email, auth_source=auth_source)
     
-    return jsonify(id=username, auth_source=auth_source)
+    return jsonify(id=id, username=username, email=email, auth_source=auth_source)
     

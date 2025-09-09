@@ -108,6 +108,23 @@ def post_graph():
         print(e)
         return jsonify({'msg': 'save failed', 'status': 400})
 
+@dbr.route('/unshare_graph', methods=['POST'])
+def delete_graph():
+    res = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    userId = res['user']['id']
+    graphIds = res.get('id') 
+    if not graphIds or not isinstance(graphIds, list):
+        return jsonify({"success": False, "error": "No IDs provided"}), 400
+    
+    placeholders = ','.join(['%s'] * len(graphIds))
+    query = f'DELETE FROM blog WHERE id IN ({placeholders});'
+    cur.execute(query, graphIds)
+    conn.commit()
+    
+    cur.close()
+    conn.close()
 
-# @dbr.route('/save_graph', methods=['POST'])
-# def save_graph():
+    return jsonify({"success": True, "deleted_ids": graphIds})
