@@ -5,3 +5,8 @@ requests>=2.27.1
 flask-jwt-extended
 datetime
 timedelta
+psycopg2-binary
+werkzeug
+flask_cors
+flask_restx
+networkx[default]
